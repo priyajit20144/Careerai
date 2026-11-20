@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   INITIAL_JOBS,
   INITIAL_CANDIDATES,
@@ -6,28 +6,63 @@ import {
   SYSTEM_ANALYTICS,
   AI_USAGE_LOGS,
 } from '../data/mockData';
+import { DataContext } from './dataContextInstance';
 
-const DataContext = createContext(null);
+function createJobObject(newJobData) {
+  return {
+    id: `job-${Date.now()}`,
+    postedDate: 'Just now',
+    applicantsCount: 0,
+    status: 'Active',
+    matchScore: Math.floor(Math.random() * 15) + 85,
+    tags: newJobData.tags || ['AI', 'React', 'TypeScript'],
+    ...newJobData,
+  };
+}
+
+function createInterviewEvaluation(answerText) {
+  const wordCount = answerText ? answerText.trim().split(/\s+/).length : 0;
+  return {
+    overallScore: Math.min(99, Math.max(75, 80 + Math.floor(wordCount / 5))),
+    technicalAccuracy: `${Math.floor(Math.random() * 8) + 90}%`,
+    communicationClarity: `${Math.floor(Math.random() * 10) + 88}%`,
+    feedback: `Excellent answer (${wordCount} words)! You correctly emphasized streaming response tokens, latency optimization, and robust error handling. Highlighted human-in-the-loop validation effectively.`,
+    suggestedKeywords: ['Streaming Latency', 'Vector Indexing', 'Human-in-the-loop', 'Circuit Breakers'],
+    evaluatedAt: new Date().toISOString(),
+  };
+}
+
+function createAiUsageLog(engine, action, tokens, latency) {
+  return {
+    id: `log-${Date.now()}`,
+    engine,
+    action,
+    status: 'Success',
+    tokens,
+    latency,
+    timestamp: 'Just now',
+  };
+}
+
+// Persistence key helpers
+const getStored = (key, fallback) => {
+  try {
+    const item = localStorage.getItem(`careerai_${key}`);
+    return item ? JSON.parse(item) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const setStored = (key, value) => {
+  try {
+    localStorage.setItem(`careerai_${key}`, JSON.stringify(value));
+  } catch {
+    // ignore
+  }
+};
 
 export function DataProvider({ children }) {
-  // Persistence key helpers
-  const getStored = (key, fallback) => {
-    try {
-      const item = localStorage.getItem(`careerai_${key}`);
-      return item ? JSON.parse(item) : fallback;
-    } catch {
-      return fallback;
-    }
-  };
-
-  const setStored = (key, value) => {
-    try {
-      localStorage.setItem(`careerai_${key}`, JSON.stringify(value));
-    } catch {
-      // ignore
-    }
-  };
-
   // State initialization
   const [jobs, setJobs] = useState(() => getStored('jobs', INITIAL_JOBS));
   const [candidates, setCandidates] = useState(() => getStored('candidates', INITIAL_CANDIDATES));
@@ -55,19 +90,16 @@ export function DataProvider({ children }) {
   useEffect(() => setStored('ai_logs', aiUsageLogs), [aiUsageLogs]);
   useEffect(() => setStored('analytics', systemAnalytics), [systemAnalytics]);
 
+  const logAiUsage = (engine, action, tokens, latency) => {
+    const newLog = createAiUsageLog(engine, action, tokens, latency);
+    setAiUsageLogs((prev) => [newLog, ...prev.slice(0, 19)]);
+  };
+
   // Actions
   const addJob = (newJobData) => {
-    const job = {
-      id: `job-${Date.now()}`,
-      postedDate: 'Just now',
-      applicantsCount: 0,
-      status: 'Active',
-      matchScore: Math.floor(Math.random() * 15) + 85,
-      tags: newJobData.tags || ['AI', 'React', 'TypeScript'],
-      ...newJobData,
-    };
+    const job = createJobObject(newJobData);
     setJobs((prev) => [job, ...prev]);
-    
+
     // Update analytics
     setSystemAnalytics((prev) => ({
       ...prev,
@@ -97,7 +129,7 @@ export function DataProvider({ children }) {
     await new Promise((res) => setTimeout(res, 1200));
 
     const tailored = `• Architected low-latency streaming AI workflows and vector-indexed search UX tailored for ${targetRole}, boosting candidate match accuracy by 42%.\n• Designed and shipped scalable design system primitives using TailwindCSS and React 19.\n• Synthesized technical LLM requirements into accessible multi-agent UI patterns.`;
-    
+
     setAiTailoredBullet(tailored);
 
     logAiUsage('Resume AI Engine', 'Bullet Tailoring', 1420, '280ms');
@@ -109,16 +141,7 @@ export function DataProvider({ children }) {
     // Simulate AI response delay
     await new Promise((res) => setTimeout(res, 1400));
 
-    const wordCount = answerText ? answerText.trim().split(/\s+/).length : 0;
-
-    const evaluation = {
-      overallScore: Math.min(99, Math.max(75, 80 + Math.floor(wordCount / 5))),
-      technicalAccuracy: `${Math.floor(Math.random() * 8) + 90}%`,
-      communicationClarity: `${Math.floor(Math.random() * 10) + 88}%`,
-      feedback: `Excellent answer (${wordCount} words)! You correctly emphasized streaming response tokens, latency optimization, and robust error handling. Highlighted human-in-the-loop validation effectively.`,
-      suggestedKeywords: ['Streaming Latency', 'Vector Indexing', 'Human-in-the-loop', 'Circuit Breakers'],
-      evaluatedAt: new Date().toISOString(),
-    };
+    const evaluation = createInterviewEvaluation(answerText);
 
     setUserEvaluations((prev) => ({
       ...prev,
@@ -133,19 +156,6 @@ export function DataProvider({ children }) {
     logAiUsage('Interview AI Simulator', 'Answer Evaluation', 3250, '410ms');
 
     return evaluation;
-  };
-
-  const logAiUsage = (engine, action, tokens, latency) => {
-    const newLog = {
-      id: `log-${Date.now()}`,
-      engine,
-      action,
-      status: 'Success',
-      tokens,
-      latency,
-      timestamp: 'Just now',
-    };
-    setAiUsageLogs((prev) => [newLog, ...prev.slice(0, 19)]);
   };
 
   return (
@@ -172,12 +182,4 @@ export function DataProvider({ children }) {
       {children}
     </DataContext.Provider>
   );
-}
-
-export function useData() {
-  const context = useContext(DataContext);
-  if (!context) {
-    throw new Error('useData must be used within a DataProvider');
-  }
-  return context;
 }

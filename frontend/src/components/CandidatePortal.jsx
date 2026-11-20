@@ -4,7 +4,7 @@ import {
   Search, RefreshCw, AlertCircle, Award,
   Zap, DollarSign, MapPin, Bookmark, BookmarkCheck
 } from 'lucide-react';
-import { useData } from '../context/DataContext';
+import { useData } from '../context/useData';
 
 export default function CandidatePortal({ activeModule, jobs, interviewQuestions, onTriggerToast }) {
   const {

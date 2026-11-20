@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Plus, Bot, BarChart3, Download
 } from 'lucide-react';
-import { useData } from '../context/DataContext';
+import { useData } from '../context/useData';
 
 export default function EmployerPortal({ activeModule, jobs, candidates, onTriggerToast }) {
   const { addJob, updateCandidateStatus } = useData();
